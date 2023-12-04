@@ -7,6 +7,7 @@
 #include <string>
 
 #include <unordered_set>
+#include <unordered_map>
 
 using namespace std;
 
@@ -26,8 +27,8 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    auto cardValue = [&](const std::string& line) {
-        std::optional<int> score;
+    auto cardWins = [&](const std::string& line) {
+        int nbWins = 0;
         size_t delimiterPos = line.find("|");
         smatch sm;
         string::const_iterator searchStart(line.cbegin() );
@@ -40,25 +41,42 @@ int main(int argc, char *argv[]) {
                 win.insert(number);
             } else {
                 if (win.find(number) != win.end()) {
-                    score = score ? score.value() * 2 : 1;
+                    nbWins++;
                 }
             }
 
             searchStart = sm.suffix().first;
         }
 
-        return score ? score.value() : 0;
+        return nbWins;
     };
 
     int cardSum = 0;
+    std::unordered_map<int, int> factors;
     std::string line;
+    int lineIndex = 0;
     while(getline(listFile, line)) {
         if (!line.empty()) {
             size_t pos = line.find(":");
-            cardSum += cardValue(line.substr(pos + 1));
+            const int nbWins = cardWins(line.substr(pos + 1));
+
+            factors[lineIndex]++;
+            if (nbWins > 0) {
+                for (int i=1; i<=nbWins; ++i) {
+                    factors[lineIndex + i] += factors[lineIndex];
+                }
+                cardSum += 1 << (nbWins - 1);
+            }
+
+            lineIndex++;
         }
     }
 
     cout << "Card Sum: " << cardSum << endl;
+    int nbCards = 0;
+    for (auto it:factors) {
+        nbCards += it.second;
+    }
+    cout << "Nb Cards: " << nbCards << endl;
     return EXIT_SUCCESS;
 }
