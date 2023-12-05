@@ -3,7 +3,6 @@
 #include <fstream>
 
 #include <regex>
-#include <optional>
 #include <string>
 
 #include <unordered_set>
@@ -52,6 +51,7 @@ int main(int argc, char *argv[]) {
     };
 
     int cardSum = 0;
+    int nbCards = 0;
     std::unordered_map<int, int> factors;
     std::string line;
     int lineIndex = 0;
@@ -68,15 +68,14 @@ int main(int argc, char *argv[]) {
                 cardSum += 1 << (nbWins - 1);
             }
 
+            nbCards += factors[lineIndex];
+            factors.erase(lineIndex);
+
             lineIndex++;
         }
     }
 
     cout << "Card Sum: " << cardSum << endl;
-    int nbCards = 0;
-    for (auto it:factors) {
-        nbCards += it.second;
-    }
     cout << "Nb Cards: " << nbCards << endl;
     return EXIT_SUCCESS;
 }
