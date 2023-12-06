@@ -44,8 +44,10 @@ int main(int argc, char *argv[]) {
 
     std::string line;
     getline(listFile, line);
+    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
     auto time = getNumbers(line);
     getline(listFile, line);
+    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
     auto distance = getNumbers(line);
 
     long nbWays = 1;
