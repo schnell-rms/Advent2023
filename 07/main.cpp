@@ -21,7 +21,7 @@ long getNumber(const std::string& line) {
 };
 
 int getCardOrder(char c) {
-    const std::string order = "AKQJT98765432";
+    const std::string order = "AKQT98765432J";
     return order.find(c);
 }
 
@@ -44,7 +44,12 @@ int main(int argc, char *argv[]) {
 
     auto getType = [&](const THand& hand) {
         unordered_map<char, int> cardCount;
+        int countJs = 0;
         for (char c:hand.first) {
+            if (c == 'J') {
+                countJs++;
+                continue;
+            }
             cardCount[c]++;
         }
 
@@ -62,14 +67,14 @@ int main(int argc, char *argv[]) {
 
 
         if (cardCount.size()==3) {
-            if (*(count.rbegin()) == 3)
+            if (*(count.rbegin()) + countJs == 3)
                 return 4;
             
             return 3;
         }
 
         if (cardCount.size()==2) {
-            if (*(count.rbegin()) == 4)
+            if (*(count.rbegin()) + countJs == 4)
                 return 6;
             return 5;
         }
