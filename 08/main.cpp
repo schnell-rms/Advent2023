@@ -9,27 +9,23 @@
 
 using namespace std;
 
-std::vector<long> allNumbers(const std::string& line) {
-    smatch sm;
-    std::vector<long> ret;
-    string::const_iterator searchStart(line.cbegin() );
-    while (regex_search(searchStart, line.cend(), sm, regex("(\\d+)"))) {
-
-        const long number = std::stol(sm[1]);
-        ret.push_back(number);
-
-        searchStart = sm.suffix().first;
+long greatCommnDivisor(long x, long y)
+{
+    while(true)
+    {
+        if (x == 0) return y;
+        y %= x;
+        if (y == 0) return x;
+        x %= y;
     }
-    return ret;
-};
+}
 
-long firstNumber(const std::string& line) {
-    smatch sm;
-    regex_search(line.cbegin(), line.cend(), sm, regex("(\\d+)"));
+long leastCommonMultiple(long x, long y)
+{
+    long gcd = greatCommnDivisor(x, y);
 
-    const long number = std::stol(sm[1]);
-    return number;
-};
+    return gcd ? (x / gcd * y) : 0;
+}
 
 using TMap = std::unordered_map<std::string, std::pair<std::string, std::string>>;
 
@@ -54,24 +50,66 @@ int main(int argc, char *argv[]) {
     std::string line;
     getline(listFile, line);
     std::string directions = line;
+    std::vector<std::string> positions;
     while(getline(listFile, line)) {
         if (!line.empty()) {
             
             const std::string key = line.substr(0,3);
             theMap[key] = std::make_pair(line.substr(7,3), line.substr(12,3));
 //            cout << key << " = " << theMap[key].first << " " << theMap[key].second << endl;
+            if (key[2] == 'A') {
+                positions.push_back(key);
+            }
         }
     }
 
-    std:string pos("AAA");
-    size_t i = 0;
-    size_t nbSteps = 0;
-    while (pos != "ZZZ") {
-        pos = (directions[i] == 'L') ? theMap[pos].first : theMap[pos].second;
-        i = (i+1) % directions.size();
-        nbSteps++;
+    auto isEnd = [&positions]() {
+        for (auto& pos:positions) 
+            if (pos.back() != 'Z') 
+                return false;
+        return true;
     };
 
+    std::vector<std::string> starts;
+    auto goOneStep = [&](char direction) {
+        if (direction == 'L') {
+            for (auto& pos : positions) {
+                pos = theMap[pos].first;
+            } 
+        } else {
+            for (auto& pos : positions) {
+                pos = theMap[pos].second;
+            } 
+        }
+    };
+
+
+    auto findPath = [&](const std::string& start) {
+        size_t i = 0;
+        size_t nbSteps = 0;
+        auto pos = start;
+        while (pos.back() != 'Z') {
+            pos = (directions[i] == 'L') ? theMap[pos].first : theMap[pos].second;
+            i = (i+1) % directions.size();
+            nbSteps++;
+        };
+        return nbSteps;
+    };
+
+    size_t nbSteps = findPath("AAA");
+    cout << "NB steps: " << nbSteps << endl;
+
+    size_t i = 0;
+    std::vector<long> nbAllSteps(positions.size(), 0);
+    for (size_t i=0; i<positions.size(); ++i) { 
+        nbAllSteps[i] = findPath(positions[i]);
+        cout << nbAllSteps[i] << endl;
+    };
+
+    nbSteps = nbAllSteps[0];
+    for (i = 1; i< nbAllSteps.size(); ++i) {
+        nbSteps = leastCommonMultiple(nbSteps, nbAllSteps[i]);
+    }
 
     cout << "NB steps: " << nbSteps << endl;
 
