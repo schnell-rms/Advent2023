@@ -46,31 +46,21 @@ int main(int argc, char *argv[]) {
     }
 
     TMap theMap;
-    
+
     std::string line;
     getline(listFile, line);
     std::string directions = line;
     std::vector<std::string> positions;
     while(getline(listFile, line)) {
         if (!line.empty()) {
-            
             const std::string key = line.substr(0,3);
             theMap[key] = std::make_pair(line.substr(7,3), line.substr(12,3));
-//            cout << key << " = " << theMap[key].first << " " << theMap[key].second << endl;
             if (key[2] == 'A') {
                 positions.push_back(key);
             }
         }
     }
 
-    auto isEnd = [&positions]() {
-        for (auto& pos:positions) 
-            if (pos.back() != 'Z') 
-                return false;
-        return true;
-    };
-
-    std::vector<std::string> starts;
     auto goOneStep = [&](char direction) {
         if (direction == 'L') {
             for (auto& pos : positions) {
@@ -83,35 +73,104 @@ int main(int argc, char *argv[]) {
         }
     };
 
-
+    // It seems that the input in engineered in such a way that after reaching one Z
+    // the same Z will be reached again and again in a cycle, wihtout passsing through
+    // another Z.
+    // findPath returns the number of steps until the first and second Z
     auto findPath = [&](const std::string& start) {
         size_t i = 0;
-        size_t nbSteps = 0;
         auto pos = start;
-        while (pos.back() != 'Z') {
+        long times = 0;
+        const long kNbNbOfSearchedZs = 2;// first Z=>Z cycle only
+        std::vector<long> nbStepsToZ;
+        nbStepsToZ.push_back(0);
+        while (times < kNbNbOfSearchedZs) {
+            while (pos.back() != 'Z') {
+                pos = (directions[i] == 'L') ? theMap[pos].first : theMap[pos].second;
+                i = (i+1) % directions.size();
+                nbStepsToZ.back()++;
+            };
             pos = (directions[i] == 'L') ? theMap[pos].first : theMap[pos].second;
             i = (i+1) % directions.size();
-            nbSteps++;
-        };
-        return nbSteps;
+            nbStepsToZ.push_back(1);
+            times++;
+        }
+
+        return nbStepsToZ;
     };
 
-    size_t nbSteps = findPath("AAA");
+    // I I I I I I I
+    // First star:
+    auto ttt = findPath("AAA");
+    size_t nbSteps = findPath("AAA")[0];
     cout << "NB steps: " << nbSteps << endl;
 
+    // II II II II II II II II II II
+    // The Z=>Z cycles have the same number of steps as the A=>Z path
+    // So use the least common multiple
     size_t i = 0;
-    std::vector<long> nbAllSteps(positions.size(), 0);
-    for (size_t i=0; i<positions.size(); ++i) { 
-        nbAllSteps[i] = findPath(positions[i]);
-        cout << nbAllSteps[i] << endl;
+     size_t kNbRoutes = positions.size();
+    // Route info: offset, steps to first Z, ....
+    std::vector<std::vector<long>> routeInfo;
+    routeInfo.reserve(kNbRoutes);
+    for (size_t i=0; i<positions.size(); ++i) {
+        routeInfo.push_back(findPath(positions[i]));
     };
 
-    nbSteps = nbAllSteps[0];
-    for (i = 1; i< nbAllSteps.size(); ++i) {
-        nbSteps = leastCommonMultiple(nbSteps, nbAllSteps[i]);
+    nbSteps = routeInfo[0][0];
+    for (i = 1; i< routeInfo.size(); ++i) {
+        nbSteps = leastCommonMultiple(nbSteps, routeInfo[i][0]);
     }
 
     cout << "NB steps: " << nbSteps << endl;
+
+    // III III III III III III III III III III III
+    // More general approach, with different offsets - aka A=>Z steps - of the Z-cycles,
+    // although not he case in the given input.
+    // Interesting whether such a case could be easily constructed, i.e. A==>Z number of steps
+    // different than the Z==> same and only Z cycle.
+    // Becausue the LR directions from A to entering the cycle would have to become part of the cycle,
+    // in the next runs and so on so forth.
+    // Anyway, for the sake of it: similar with the least common multiplier with different starting offsets.
+    // When offsets are 0, it is real lcm:
+    std::vector<long> routeSteps(kNbRoutes);
+
+    for (size_t i=0; i<kNbRoutes; ++i) {
+        routeSteps[i] = routeInfo[i][0];
+    };
+
+    auto allOnZ = [&]() {
+        for (size_t i=1; i<kNbRoutes; ++i) {
+            if (routeSteps[i-1] != routeSteps[i])
+                return false;
+        }
+        return routeSteps[0]!=0;
+    };
+
+    clock_t tStart = clock();
+    long counter = 0;
+    while (!allOnZ()) {
+        long minSteps = routeSteps[0];
+        for (size_t i=1; i<kNbRoutes; ++i) {
+            if (minSteps > routeSteps[i]) {
+                minSteps = routeSteps[i];
+            }
+        }
+
+        for (size_t i=0; i<kNbRoutes; ++i) {
+            if (minSteps == routeSteps[i]) {
+                routeSteps[i] += routeInfo[i][1];
+            }
+        }
+
+        counter++;
+    }
+
+    cout << "Time taken: " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;
+
+    cout << "Counter on " << counter << endl;
+    cout << "NB steps - different offsets considered: " << routeSteps[0] << endl;
+//    assert(nbSteps == routeSteps[0]);
 
     return EXIT_SUCCESS;
 }
