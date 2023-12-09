@@ -43,18 +43,20 @@ void printVector(const std::vector<long>& numbers) {
     cout << endl;
 }
 
-long extrapolate(const std::string &line) {
+std::pair<long, long> extrapolate(const std::string &line) {
     std::vector<long> numbers = allNumbers(line);
 
-    std::vector<long> lastVals;
+    std::vector<long> lastVals, firstVals;
     std::vector<long> nextNumbers;
     printVector(numbers);
     lastVals.push_back(numbers.back());
+    firstVals.push_back(numbers[0]);
     while (!allZeroes(numbers)) {
         for (size_t i = 1; i < numbers.size(); ++i) {
             nextNumbers.push_back(numbers[i] - numbers[i-1]);
         }
         lastVals.push_back(nextNumbers.back());
+        firstVals.push_back(nextNumbers[0]);
 
         numbers = std::move(nextNumbers);
         printVector(numbers);
@@ -62,20 +64,21 @@ long extrapolate(const std::string &line) {
 
     cout << "LAST: ";
     printVector(lastVals);
+    cout << "PAST: ";
+    printVector(firstVals);
+    long retFuture = 0, retPast = 0;
 
-    std::reverse(lastVals.begin(), lastVals.end());
-    cout << "LAST: ";
-    printVector(lastVals);
-
-    long ret = 0;
-
-    for (size_t i = 0; i < lastVals.size(); ++i) {
-        ret += lastVals[i];
+    
+    for (ssize_t i = lastVals.size()-1; i > 0; --i) {
+        retFuture += lastVals[i];
+        retPast = firstVals[i-1] - retPast;
     }
+    
+    retFuture+= lastVals[0];
+    
+    // cout << ret << "\n\n" << endl;
 
-    cout << ret << "\n\n" << endl;
-
-    return ret;
+    return std::make_pair(retFuture, retPast);
 };
 
 int main(int argc, char *argv[]) {
@@ -95,14 +98,17 @@ int main(int argc, char *argv[]) {
     }
     
     std::string line;
-    long sumValue = 0;
+    long sumFuture = 0;
+    long sumPast = 0;
     while(getline(listFile, line)) {
         if (!line.empty()) {
-            sumValue  += extrapolate(line);
-            
+            auto ret = extrapolate(line);
+            sumFuture += ret.first;
+            sumPast  += ret.second;
         }
     }
 
-    cout << "Sum: " << sumValue << endl;
+    cout << "Sum: " << sumFuture << endl;
+    cout << "Sum: " << sumPast << endl;
     return EXIT_SUCCESS;
 }
