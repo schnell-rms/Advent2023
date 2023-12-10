@@ -20,7 +20,7 @@ long getNumber(const std::string& line) {
     return number;
 };
 
-int getCardOrder(char c) {
+size_t getCardOrder(char c) {
     const std::string order = "AKQT98765432J";
     return order.find(c);
 }

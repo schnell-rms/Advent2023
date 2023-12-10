@@ -2,34 +2,26 @@
 #include <sstream>
 #include <fstream>
 
+#include <numeric>
 #include <regex>
 #include <string>
-
 #include <unordered_map>
 
 using namespace std;
 
-long greatCommnDivisor(long x, long y)
-{
-    while(true)
-    {
-        if (x == 0) return y;
-        y %= x;
-        if (y == 0) return x;
-        x %= y;
-    }
-}
-
-long leastCommonMultiple(long x, long y)
-{
-    long gcd = greatCommnDivisor(x, y);
-
-    return gcd ? (x / gcd * y) : 0;
-}
-
 using TMap = std::unordered_map<std::string, std::pair<std::string, std::string>>;
 
+template<class T>
+void printVector(const std::vector<T> vec) {
+    for(auto t:vec) {
+        cout << t << " ";
+    }
+    cout << endl;
+}
+
 int main(int argc, char *argv[]) {
+
+    const bool isDebugMode = argc > 2;
 
     std::string inputFilePath;
     if (argc > 1) {
@@ -78,38 +70,48 @@ int main(int argc, char *argv[]) {
     // another Z.
     // findPath returns the number of steps until the first and second Z
     auto findPath = [&](const std::string& start) {
+        std::vector<long> nbStepsToZ;
+        if (theMap.end() == theMap.find(start)) {
+            return nbStepsToZ;
+        }
         size_t i = 0;
         auto pos = start;
         long times = 0;
-        const long kNbNbOfSearchedZs = 2;// first Z=>Z cycle only
-        std::vector<long> nbStepsToZ;
+        const long kNbNbOfSearchedZs = isDebugMode ? 10 : 2;// first Z=>Z cycle only
         nbStepsToZ.push_back(0);
         while (times < kNbNbOfSearchedZs) {
+            assert(theMap.end() != theMap.find(pos));
             while (pos.back() != 'Z') {
+                // isDebugMode && cout << pos << " ";
                 pos = (directions[i] == 'L') ? theMap[pos].first : theMap[pos].second;
                 i = (i+1) % directions.size();
                 nbStepsToZ.back()++;
             };
+            // isDebugMode && cout << pos << " ";
             pos = (directions[i] == 'L') ? theMap[pos].first : theMap[pos].second;
             i = (i+1) % directions.size();
             nbStepsToZ.push_back(1);
             times++;
         }
 
+        // isDebugMode && cout << endl;
         return nbStepsToZ;
     };
 
     // I I I I I I I
     // First star:
-    auto ttt = findPath("AAA");
-    size_t nbSteps = findPath("AAA")[0];
-    cout << "NB steps: " << nbSteps << endl;
+    auto result = findPath("AAA");
+    size_t nbSteps = 0;
+    if (!result.empty()) {
+        nbSteps = result[0];
+        cout << "NB steps: " << nbSteps << endl;
+    }
 
     // II II II II II II II II II II
     // The Z=>Z cycles have the same number of steps as the A=>Z path
     // So use the least common multiple
     size_t i = 0;
-     size_t kNbRoutes = positions.size();
+    size_t kNbRoutes = positions.size();
     // Route info: offset, steps to first Z, ....
     std::vector<std::vector<long>> routeInfo;
     routeInfo.reserve(kNbRoutes);
@@ -119,7 +121,7 @@ int main(int argc, char *argv[]) {
 
     nbSteps = routeInfo[0][0];
     for (i = 1; i< routeInfo.size(); ++i) {
-        nbSteps = leastCommonMultiple(nbSteps, routeInfo[i][0]);
+        nbSteps = std::lcm(nbSteps, routeInfo[i][0]);
     }
 
     cout << "NB steps: " << nbSteps << endl;
@@ -133,44 +135,58 @@ int main(int argc, char *argv[]) {
     // in the next runs and so on so forth.
     // Anyway, for the sake of it: similar with the least common multiplier with different starting offsets.
     // When offsets are 0, it is real lcm:
-    std::vector<long> routeSteps(kNbRoutes);
-
-    for (size_t i=0; i<kNbRoutes; ++i) {
-        routeSteps[i] = routeInfo[i][0];
-    };
-
-    auto allOnZ = [&]() {
-        for (size_t i=1; i<kNbRoutes; ++i) {
-            if (routeSteps[i-1] != routeSteps[i])
-                return false;
-        }
-        return routeSteps[0]!=0;
-    };
-
-    clock_t tStart = clock();
-    long counter = 0;
-    while (!allOnZ()) {
-        long minSteps = routeSteps[0];
-        for (size_t i=1; i<kNbRoutes; ++i) {
-            if (minSteps > routeSteps[i]) {
-                minSteps = routeSteps[i];
-            }
-        }
+    if (isDebugMode && ("offset" == std::string(argv[2]))) {
+        cout << "Start the different offsets computation" << endl;
+        std::vector<long> routeSteps(kNbRoutes);
 
         for (size_t i=0; i<kNbRoutes; ++i) {
-            if (minSteps == routeSteps[i]) {
-                routeSteps[i] += routeInfo[i][1];
+            routeSteps[i] = routeInfo[i][0];
+        };
+
+        auto allOnZ = [&]() {
+            for (size_t i=1; i<kNbRoutes; ++i) {
+                if (routeSteps[i-1] != routeSteps[i])
+                    return false;
             }
+            return routeSteps[0]!=0;
+        };
+
+        clock_t tStart = clock();
+        long counter = 0;
+        while (!allOnZ()) {
+            long minSteps = routeSteps[0];
+            for (size_t i=1; i<kNbRoutes; ++i) {
+                if (minSteps > routeSteps[i]) {
+                    minSteps = routeSteps[i];
+                }
+            }
+
+            for (size_t i=0; i<kNbRoutes; ++i) {
+                if (minSteps == routeSteps[i]) {
+                    routeSteps[i] += routeInfo[i][1];
+                }
+            }
+
+            counter++;
         }
 
-        counter++;
+        cout << "Time taken: " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;
+
+        cout << "Counter on " << counter << endl;
+        cout << "NB steps - different offsets considered: " << routeSteps[0] << endl;
+        assert(nbSteps == routeSteps[0]);
     }
 
-    cout << "Time taken: " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;
+    // IV IV IV IV IV IV IV IV IV IV IV IV IV IV IV IV IV IV IV IV IV
+    if (isDebugMode) {
+        auto ttt = findPath("AAA");
+        cout << "cycles AAA" << endl;
+        printVector<long>(ttt);
 
-    cout << "Counter on " << counter << endl;
-    cout << "NB steps - different offsets considered: " << routeSteps[0] << endl;
-//    assert(nbSteps == routeSteps[0]);
+        ttt = findPath("A1A");
+        cout << "cycles A1A" << endl;
+        printVector<long>(ttt);
+    }
 
     return EXIT_SUCCESS;
 }
