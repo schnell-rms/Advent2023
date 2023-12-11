@@ -64,6 +64,10 @@ int main(int argc, char *argv[]) {
     }
 
     auto getDistance = [&](const TCoordinate &star1, const TCoordinate &star2) {
+
+        // expansion factor: 2 for the first star. Value here is for the second star:
+        const size_t expansionFactor = 1000000;
+
         size_t distLine = abs(star2.first - star1.first);
         size_t distCol = abs(star2.second - star1.second);
         size_t expansionLine = 0;
@@ -78,7 +82,7 @@ int main(int argc, char *argv[]) {
         for (size_t j = minCol+1; j<maxCol; ++j) {
             if (isEmptyColumn[j]) expansionCol++;
         }
-        return distLine + distCol + expansionLine + expansionCol;
+        return distLine + distCol + (expansionFactor-1)*(expansionLine + expansionCol);
     };
 
     size_t totalSum = 0;
