@@ -10,9 +10,6 @@
 
 using namespace std;
 
-using TMap = std::vector<std::string>;
-using TArrangement = std::vector<std::vector<long>>;
-
 using TCache = std::unordered_map<size_t, size_t>;
 
 size_t hashSituation(size_t strIdx, size_t arrIdx, std::optional<size_t> mandatoryNb) {
@@ -108,54 +105,43 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    TMap springMap;
-    TArrangement arrangement;
+    std::string springMap;
+    std::vector<long> arrangement;
+
+    auto unfold = [&]() {
+        std::string unfoldedStr(springMap);
+        for (int i=1; i<5;  i++) {
+            unfoldedStr += '?';
+            unfoldedStr += springMap;
+        }
+        springMap.swap(unfoldedStr);
+
+        auto newArr(arrangement);
+        for (int i=0; i<4;  i++) {
+            newArr.insert(std::end(newArr), std::begin(arrangement), std::end(arrangement));
+        }
+        arrangement.swap(newArr);
+    };
 
     std::string line;
+    size_t totalSum_silver = 0;
+    size_t totalSum_gold = 0;
+    TCache cache;
     while(getline(listFile, line)) {
         if (!line.empty()) {
             size_t pos = line.find(' ');
-            springMap.emplace_back(line.substr(0,pos));
-            arrangement.push_back(allNumbers(line));
+            springMap = line.substr(0,pos);
+            arrangement = allNumbers(line);
+            cache.clear();
+            totalSum_silver += getNb(springMap, 0UL, arrangement, 0UL, std::optional<size_t>(), cache);
+            unfold();
+            cache.clear();
+            totalSum_gold   += getNb(springMap, 0UL, arrangement, 0UL, std::optional<size_t>(), cache);
         }
     }
 
-    auto unfold = [&]() {
-        for (auto &str:springMap) {
-            std::string unfoldedStr(str);
-            for (int i=1; i<5;  i++) {
-                unfoldedStr += '?';
-                unfoldedStr += str;
-            }
-            str.swap(unfoldedStr);
-        }
-        for (auto &arr:arrangement) {
-            auto newArr = arr;
-            for (int i=0; i<4;  i++) {
-                newArr.insert(std::end(newArr), std::begin(arr), std::end(arr));
-            }
-            arr.swap(newArr);
-        }
-    };
-
-    size_t totalSum = 0;
-    for (size_t i = 0; i< springMap.size(); ++i) {
-        TCache cache;
-        const auto lineNb = getNb(springMap[i], 0UL, arrangement[i], 0UL, std::optional<size_t>(), cache);
-        totalSum += lineNb;
-    }
-
-    cout << "Silver sum: " << totalSum << endl;
-
-    unfold();
-
-    totalSum = 0;
-    for (size_t i = 0; i< springMap.size(); ++i) {
-        TCache cache;
-        const auto lineNb = getNb(springMap[i], 0UL, arrangement[i], 0UL, std::optional<size_t>(), cache);
-        totalSum += lineNb;
-    }
-    cout << "Golder sum: " << totalSum << endl;
+    cout << "Silver sum: " << totalSum_silver << endl;
+    cout << "Golded sum: " << totalSum_gold << endl;
 
     return EXIT_SUCCESS;
 }
