@@ -68,17 +68,17 @@ int main(int argc, char *argv[]) {
         // expansion factor: 2 for the first star. Value here is for the second star:
         const size_t expansionFactor = 1000000;
 
-        size_t distLine = abs(star2.first - star1.first);
-        size_t distCol = abs(star2.second - star1.second);
+        const size_t distLine = abs(star2.first - star1.first);
+        const size_t distCol = abs(star2.second - star1.second);
         size_t expansionLine = 0;
-        size_t minLine = std::min(star2.first, star1.first);
-        size_t maxLine = std::max(star2.first, star1.first);
+        const size_t minLine = std::min(star2.first, star1.first);
+        const size_t maxLine = std::max(star2.first, star1.first);
         for (size_t i = minLine+1; i<maxLine; ++i) {
             if (isEmptyLine[i]) expansionLine++;
         }
         size_t expansionCol = 0;
-        size_t minCol = std::min(star2.second, star1.second);
-        size_t maxCol = std::max(star2.second, star1.second);
+        const size_t minCol = std::min(star2.second, star1.second);
+        const size_t maxCol = std::max(star2.second, star1.second);
         for (size_t j = minCol+1; j<maxCol; ++j) {
             if (isEmptyColumn[j]) expansionCol++;
         }
@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     for(size_t i=0; i<coordinates.size(); i++) {
         for(size_t j=i+1; j<coordinates.size(); j++) {
             const auto dist = getDistance(coordinates[i],coordinates[j]);
-            cout << "Dist " << i << " to " << j << " is: " << dist << "\n";
+            isDebugMode && cout << "Dist " << i << " to " << j << " is: " << dist << "\n";
             totalSum += dist;
         }
     }
