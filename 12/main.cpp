@@ -48,53 +48,37 @@ size_t getNb(const std::string& str, size_t idx, const std::vector<long>& arr, s
 
     size_t nb = 0;
     // Hmmm .. all these could be fit in a nice & big tree of ternary operators... :))
-    switch (str[idx]) {
-        case '.':
-            if (stillNeedsSprings()) {
-                if (thereCouldBeSpringsLeft()) {
-                    nb = getNb(str, idx + 1, arr, arrIdx, cache);
-                }
-            } else {// No need for further springs
-                nb = thereAreSpringsLeft() ? 0 : 1;
+    if ('.' == str[idx]) {
+        if (stillNeedsSprings()) {
+            if (thereCouldBeSpringsLeft()) {
+                nb = getNb(str, idx + 1, arr, arrIdx, cache);
             }
-            break;
-        case '#':// Spring found: forced to count it
-            if (stillNeedsSprings()) {
-                // Could fit here the entire arr[arrIdx] group?
-                const size_t posPoint = std::min(   str.find('.', idx + 1),
-                                                    str.size());
-                if (posPoint - idx >= arr[arrIdx]) {
-                    // The current group could expand up to:
-                    const size_t nextPos = idx + arr[arrIdx];
-                    // but no further:
-                    if (str[nextPos] != '#') {
-                        // nbPos + 1 to jump over a '.' or a '?' which has to be point
-                        nb = getNb(str, nextPos + 1, arr, arrIdx + 1, cache);
-                    }
-                }
-            }
-            break;
-        case '?':
-            // Try both ways:
-            // Jump over as being a '.'
-            nb = getNb(str, idx + 1, arr, arrIdx, cache);
-            if (stillNeedsSprings()) {
-                // Or retry, with a group of #:
-                const size_t posPoint = std::min(   str.find('.', idx + 1),
-                                                    str.size());
-                if (posPoint - idx >= arr[arrIdx]) {
-                    // The current group could expand up to:
-                    const size_t nextPos = idx + arr[arrIdx];
-                    // but no further:
-                    if (str[nextPos] != '#') {
-                        // nbPos + 1 to jump over a '.' or a '?' which has to be point
-                        nb += getNb(str, nextPos + 1, arr, arrIdx + 1, cache);
-                    }
+        } else {// No need for further springs
+            nb = thereAreSpringsLeft() ? 0 : 1;
+        }
+    }
+    else if (('#' == str[idx]) || ('?' == str[idx])) {
+        // Spring potetially found: forced to count it
+        if (stillNeedsSprings()) {
+            // Could fit here the entire arr[arrIdx] group?
+            const size_t posPoint = std::min(   str.find('.', idx + 1),
+                                                str.size());
+            if (posPoint - idx >= arr[arrIdx]) {
+                // The current group could expand up to:
+                const size_t nextPos = idx + arr[arrIdx];
+                // but no further:
+                if (str[nextPos] != '#') {
+                    // nbPos + 1 to jump over a '.' or a '?' which has to be point
+                    nb = getNb(str, nextPos + 1, arr, arrIdx + 1, cache);
                 }
             }
-            break;
-        default:
-            assert(false);
+        }
+    }
+
+    if ('?' == str[idx]) {
+        // Jump over as being a '.'
+        // The '#' case was treated a
+        nb += getNb(str, idx + 1, arr, arrIdx, cache);
     }
     
     cache[key] = nb;
