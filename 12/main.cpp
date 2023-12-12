@@ -2,7 +2,6 @@
 #include <sstream>
 #include <fstream>
 
-#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -12,73 +11,86 @@ using namespace std;
 
 using TCache = std::unordered_map<size_t, size_t>;
 
-size_t hashSituation(size_t strIdx, size_t arrIdx, std::optional<size_t> mandatoryNb) {
-    size_t ret = strIdx << 32;
-    ret |= arrIdx << 16;
-    ret |= (mandatoryNb.has_value() ? 1 : 0) << 15;
-    ret |= (mandatoryNb.has_value() ? mandatoryNb.value() : 0);
-    return ret;
+size_t hashSituation(size_t strIdx, size_t arrIdx) {
+    return (strIdx << 32) | arrIdx;
 }
 
-size_t getNb(std::string str, size_t idx, std::vector<long> arr, size_t arrIdx,  std::optional<size_t> mandatoryNb, TCache& cache) {
+size_t getNb(const std::string& str, size_t idx, const std::vector<long>& arr, size_t arrIdx, TCache& cache) {
 
-    auto needsSpringNow = [&mandatoryNb]() {
-        return mandatoryNb && (mandatoryNb.value() > 0);
+    auto stillNeedsSprings = [&]() {
+        return arrIdx < arr.size();
     };
 
-    auto needsPointNow = [&mandatoryNb]() {
-        return mandatoryNb && (mandatoryNb.value() == 0);
+    auto thereCouldBeSpringsLeft = [&]() {
+        return std::string::npos != str.find_first_of("#?", idx);
     };
 
-    if (str.size() == idx) {
+    auto thereAreSpringsLeft = [&]() {
+        return std::string::npos != str.find('#', idx);
+    };
+
+    if (!thereCouldBeSpringsLeft()) { //former: (str.size() == idx) {
         // All springs are counted. Need to count more?
-        return (needsSpringNow() || (arrIdx < arr.size())) ? 0 : 1;
+        return stillNeedsSprings() ? 0 : 1;
     }
 
-    if ((arrIdx == arr.size()) && !needsSpringNow()) {
+    if (!stillNeedsSprings()) {
         // Nothing else to match, check whether there are still uncounted springs:
-        return std::string::npos == str.find('#', idx) ? 1 : 0;
+        return thereAreSpringsLeft() ? 0 : 1;
     }
 
-    const size_t key = hashSituation(idx, arrIdx, mandatoryNb);
+    const size_t key = hashSituation(idx, arrIdx);
     // Inspect the cache:
     auto it = cache.find(key);
     if (it != cache.end()) {
         return it->second;
     }
 
-    size_t nb;
+    size_t nb = 0;
+    // Hmmm .. all these could be fit in a nice & big tree of ternary operators... :))
     switch (str[idx]) {
         case '.':
-            nb = needsSpringNow()
-                    ? 0
-                    : getNb(str, idx + 1, arr, arrIdx, std::optional<size_t>{}, cache);
+            if (stillNeedsSprings()) {
+                if (thereCouldBeSpringsLeft()) {
+                    nb = getNb(str, idx + 1, arr, arrIdx, cache);
+                }
+            } else {// No need for further springs
+                nb = thereAreSpringsLeft() ? 0 : 1;
+            }
             break;
-        case '#':// Spring found:
-            if (needsSpringNow()) {
-                mandatoryNb = mandatoryNb.value() - 1;//count it
-                nb = getNb(str, idx + 1, arr, arrIdx, mandatoryNb, cache);
-            } else if (needsPointNow()) {
-                nb = 0;
-            } else {
-                // Take this spring in the next group and retry:
-                mandatoryNb = arr[arrIdx];// Start counting and run again:
-                nb = getNb(str, idx, arr, arrIdx + 1, mandatoryNb, cache);
+        case '#':// Spring found: forced to count it
+            if (stillNeedsSprings()) {
+                // Could fit here the entire arr[arrIdx] group?
+                const size_t posPoint = std::min(   str.find('.', idx + 1),
+                                                    str.size());
+                if (posPoint - idx >= arr[arrIdx]) {
+                    // The current group could expand up to:
+                    const size_t nextPos = idx + arr[arrIdx];
+                    // but no further:
+                    if (str[nextPos] != '#') {
+                        // nbPos + 1 to jump over a '.' or a '?' which has to be point
+                        nb = getNb(str, nextPos + 1, arr, arrIdx + 1, cache);
+                    }
+                }
             }
             break;
         case '?':
-            if (needsSpringNow()) { // Force it to spring:
-                mandatoryNb = mandatoryNb.value() - 1;
-                nb = getNb(str, idx + 1, arr, arrIdx, mandatoryNb, cache);
-            } else if (needsPointNow()) { // FOrce it to point:
-                nb = getNb(str, idx + 1, arr, arrIdx, std::optional<size_t>{}, cache);
-            } else { // Try both:
-                // Jump over as being a '.'
-                const size_t nPoint = getNb(str, idx + 1, arr, arrIdx, std::optional<size_t>{}, cache);
-                // Or retry, with mandatory # this time:
-                mandatoryNb = arr[arrIdx];// start counter: next call will force it to spring:
-                const size_t nSpring = getNb(str, idx, arr, arrIdx + 1, mandatoryNb, cache);
-                nb = nPoint + nSpring;
+            // Try both ways:
+            // Jump over as being a '.'
+            nb = getNb(str, idx + 1, arr, arrIdx, cache);
+            if (stillNeedsSprings()) {
+                // Or retry, with a group of #:
+                const size_t posPoint = std::min(   str.find('.', idx + 1),
+                                                    str.size());
+                if (posPoint - idx >= arr[arrIdx]) {
+                    // The current group could expand up to:
+                    const size_t nextPos = idx + arr[arrIdx];
+                    // but no further:
+                    if (str[nextPos] != '#') {
+                        // nbPos + 1 to jump over a '.' or a '?' which has to be point
+                        nb += getNb(str, nextPos + 1, arr, arrIdx + 1, cache);
+                    }
+                }
             }
             break;
         default:
@@ -133,10 +145,10 @@ int main(int argc, char *argv[]) {
             springMap = line.substr(0,pos);
             arrangement = allNumbers(line);
             cache.clear();
-            totalSum_silver += getNb(springMap, 0UL, arrangement, 0UL, std::optional<size_t>(), cache);
+            totalSum_silver += getNb(springMap, 0UL, arrangement, 0UL, cache);
             unfold();
             cache.clear();
-            totalSum_gold   += getNb(springMap, 0UL, arrangement, 0UL, std::optional<size_t>(), cache);
+            totalSum_gold   += getNb(springMap, 0UL, arrangement, 0UL, cache);
         }
     }
 
