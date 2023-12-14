@@ -9,6 +9,8 @@
 
 using namespace std;
 
+using TCache = std::unordered_map<std::string, size_t>;
+
 int main(int argc, char *argv[]) {
 
     std::string inputFilePath;
@@ -30,19 +32,19 @@ int main(int argc, char *argv[]) {
     std::string line;
     while(getline(listFile, line)) {
         if (!line.empty()) {
-            lines.push_back(line);
+            lines.push_back(std::move(line));
         }
     }
 
     long total = 0;
-    const size_t kNbLines = lines.size();
-    const size_t kNbColumns = lines[0].size();
-    std::vector<long> factors(kNbColumns, kNbLines);
-    // printMatrix(lines);
-    for (size_t i=0; i<kNbLines; ++i) {
-        for (size_t j=0; j<kNbColumns; ++j) {
+    auto kNbLines   = [&lines] () { return lines.size(); };
+    auto kNbColumns = [&lines] () { return lines[0].size(); };
+    std::vector<long> factors(kNbColumns(), kNbLines());
+    // Get the first star in one shot: like all Os to the north and counted:
+    for (size_t i=0; i<kNbLines(); ++i) {
+        for (size_t j=0; j<kNbColumns(); ++j) {
             if (lines[i][j] == '#') {
-                factors[j] = kNbLines - i - 1;// - 1: calculate for the next line
+                factors[j] = kNbLines() - i - 1;// - 1: calculate for the next line
             } else if (lines[i][j] == 'O') {
                 total += factors[j];
                 factors[j]--;
@@ -52,23 +54,23 @@ int main(int argc, char *argv[]) {
 
     cout << "Total first star: " << total << endl;
 
+    // Second star:
     auto getWeigth = [&]() {
         size_t northWeigth = 0;
-        for (size_t i=0; i<kNbLines; ++i) {
-            for (size_t j=0; j<kNbColumns; ++j) {
+        for (size_t i=0; i<kNbLines(); ++i) {
+            for (size_t j=0; j<kNbColumns(); ++j) {
                 if (lines[i][j] == 'O') {
-                    northWeigth += kNbColumns - i;
+                    northWeigth += kNbColumns() - i;
                 }
             }
         }
         return northWeigth;
     };
 
-
     auto moveWest = [&]() {
-        for (size_t i=0; i<kNbLines; ++i) {
+        for (size_t i=0; i<kNbLines(); ++i) {
             size_t squarePos = -1;//overflow: ok!
-            for (size_t j=0; j<kNbColumns; ++j) {
+            for (size_t j=0; j<kNbColumns(); ++j) {
                 if (lines[i][j] == '#') {
                     squarePos = j;
                 } else if (lines[i][j] == 'O') {
@@ -81,11 +83,11 @@ int main(int argc, char *argv[]) {
     };
 
     auto clockwiseRotation = [&]() {
-        std::vector<string> rotated(kNbColumns);
-        for (size_t j=0; j<kNbColumns; ++j) {
-            rotated[j].reserve(kNbLines);
-            for (size_t i=1; i<=kNbLines; ++i) {
-                rotated[j] += lines[kNbLines - i][j];
+        std::vector<string> rotated(kNbColumns());
+        for (size_t j=0; j<kNbColumns(); ++j) {
+            rotated[j].reserve(kNbLines());
+            for (size_t i=1; i<=kNbLines(); ++i) {
+                rotated[j] += lines[kNbLines() - i][j];
             }
         }
         lines.swap(rotated);
@@ -96,17 +98,28 @@ int main(int argc, char *argv[]) {
         clockwiseRotation();
     }
 
-    std::unordered_map<std::string, size_t> states;
+    TCache states;
     auto getCurrentKey = [&]() {
         std::string key;
-        key.reserve(kNbColumns * kNbLines);
+        key.reserve(kNbColumns() * kNbLines());
         for (auto &line:lines) {
             key += line;
         }
         return key;
     };
 
-    const size_t kNbCycles = 1000000000;
+    // unpacks the key. 
+    // The 'lines' matrix will be in the key's rotation state to get the sizes right:
+    auto unpackKey = [&](const std::string& key) {;
+        std::vector<string> unpackedStates;
+        unpackedStates.reserve(kNbLines());
+        for (size_t i=0; i<kNbLines(); ++i) {
+            unpackedStates.emplace_back(key.substr(i * kNbColumns(), kNbColumns()));
+        }
+        return unpackedStates;
+    };
+
+    const size_t kNbCycles = 1000000000UL;
     for (size_t i=0; i<kNbCycles; i++) {
         for (size_t j=0; j<4; j++) {
             moveWest();
@@ -115,10 +128,18 @@ int main(int argc, char *argv[]) {
         const std::string key = getCurrentKey();
         const auto it = states.find(key);
         if (states.end() != it) {
+            // How many steps inside the last cycle to reach to state (kNbCycles - 1)? States start from 0:
             const size_t cycleLength = i - it->second;
-            // cout << "Cycle " << cycleLength << endl;
-            // TODO: it will come here again and again for the rest of the cycle. Whatever.
-            i += ((kNbCycles - i) / cycleLength) * cycleLength;
+            const size_t lastStateIdx = kNbCycles - 1;
+            const size_t lastCycleStart = i + ((lastStateIdx - i) / cycleLength) * cycleLength;
+            const size_t nbInsideCycle = lastStateIdx - lastCycleStart;
+            const size_t solutionIdx = it->second + nbInsideCycle;
+            const auto finalStateIt = std::find_if(states.cbegin(), states.cend(), [solutionIdx](auto it) {
+                return (it.second == solutionIdx);
+            });
+            lines = unpackKey(finalStateIt->first);
+            // Solution found, end loop:
+            break;
         } else {
             states[key] = i;
         }
