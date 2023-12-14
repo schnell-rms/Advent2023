@@ -5,6 +5,7 @@
 #include <regex>
 #include <string>
 #include <utils.h>
+#include <unordered_map>
 
 using namespace std;
 
@@ -90,27 +91,37 @@ int main(int argc, char *argv[]) {
         lines.swap(rotated);
     };
 
-    // printMatrix(lines);
-    // clockwiseRotation();
-    // printMatrix(lines);
-
     // Face the north to the west:
     for (size_t i=0; i<3; i++) {
         clockwiseRotation();
     }
 
-    // printMatrix(lines);
+    std::unordered_map<std::string, size_t> states;
+    auto getCurrentKey = [&]() {
+        std::string key;
+        key.reserve(kNbColumns * kNbLines);
+        for (auto &line:lines) {
+            key += line;
+        }
+        return key;
+    };
 
-    // Try with 1000, why not...
-    // P.S. it worked... So at some point it becomes stable
-    // Meaning states could somehow be cached... just in case 1000 is like 1 billion
-    // And it is not: TODO: caching!
-    for (size_t i=0; i<1000; i++) {
+    const size_t kNbCycles = 1000000000;
+    for (size_t i=0; i<kNbCycles; i++) {
         for (size_t j=0; j<4; j++) {
             moveWest();
             clockwiseRotation();
         }
-        // printMatrix(lines);
+        const std::string key = getCurrentKey();
+        const auto it = states.find(key);
+        if (states.end() != it) {
+            const size_t cycleLength = i - it->second;
+            // cout << "Cycle " << cycleLength << endl;
+            // TODO: it will come here again and again for the rest of the cycle. Whatever.
+            i += ((kNbCycles - i) / cycleLength) * cycleLength;
+        } else {
+            states[key] = i;
+        }
     }
 
     // Rotate North to north:
