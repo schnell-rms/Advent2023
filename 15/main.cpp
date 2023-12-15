@@ -3,6 +3,8 @@
 #include <fstream>
 
 #include <string>
+#include <unordered_map>
+
 #include <utils.h>
 
 using namespace std;
@@ -10,32 +12,36 @@ using namespace std;
 using TLense = std::pair<std::string, long>;
 
 struct SBox {
-    std::vector<TLense> lenses;
+    //                <label <focalLength, orderNumber>>
+    std::unordered_map<std::string, std::pair<long, size_t>> lenses;
     void removeLense(const std::string& label) {
-        for (size_t i=0; i<lenses.size(); ++i) {
-            if (label == lenses[i].first) {
-                lenses.erase(lenses.begin()+i);
-                break;
+        auto it = lenses.find(label);
+        if (it != lenses.end()) {
+            const size_t sz = it->second.second;
+            lenses.erase(it);
+            for (auto &it:lenses) {
+                if (it.second.second > sz) {
+                    --it.second.second;
+                }
             }
         }
     }
     
     void addLense(const std::string& label, long focalLength) {
-        for (size_t i=0; i<lenses.size(); ++i) {
-            if (label == lenses[i].first) {
-                lenses[i].second = focalLength;
-                return;
-            }
+        auto it = lenses.find(label);
+        if (it != lenses.end()) {
+            it -> second.first = focalLength;
+        } else {// Lense not found:
+            lenses[label] = {focalLength, lenses.size()};
         }
-        // Lense not found:
-        lenses.push_back({label, focalLength});
     }
     
     long power() {
         long pw = 0;
-        for (size_t i=1; i<=lenses.size(); ++i)  {
-            pw += i * lenses[i-1].second;;
+        for (auto &it:lenses) {
+            pw += it.second.first * (it.second.second + 1);
         }
+
         return pw;
     }
 };
