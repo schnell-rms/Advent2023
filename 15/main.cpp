@@ -3,10 +3,42 @@
 #include <fstream>
 
 #include <string>
-
 #include <utils.h>
 
 using namespace std;
+
+using TLense = std::pair<std::string, long>;
+
+struct SBox {
+    std::vector<TLense> lenses;
+    void removeLense(const std::string& label) {
+        for (size_t i=0; i<lenses.size(); ++i) {
+            if (label == lenses[i].first) {
+                lenses.erase(lenses.begin()+i);
+                break;
+            }
+        }
+    }
+    
+    void addLense(const std::string& label, long focalLength) {
+        for (size_t i=0; i<lenses.size(); ++i) {
+            if (label == lenses[i].first) {
+                lenses[i].second = focalLength;
+                return;
+            }
+        }
+        // Lense not found:
+        lenses.push_back({label, focalLength});
+    }
+    
+    long power() {
+        long pw = 0;
+        for (size_t i=1; i<=lenses.size(); ++i)  {
+            pw += i * lenses[i-1].second;;
+        }
+        return pw;
+    }
+};
 
 int main(int argc, char *argv[]) {
 
@@ -31,31 +63,51 @@ int main(int argc, char *argv[]) {
         for (char c:str) {
             code += static_cast<size_t>(c);
             code *= 17;
-            code %= 256;
+            code &= 0xFF;
         }
         return code;
     };
-        
+    
+    std::vector<SBox> boxes(256);
+    
+    auto process = [&](const std::string &str) {
+        const auto pos = str.find_first_of("=-");
+        const auto label = str.substr(0,pos);
+        const auto boxIdx = hashCode(label);
+        if ('=' == str[pos]) {
+            const long number = firstNumber(str);
+            boxes[boxIdx].addLense(label, number);
+        } else {
+            boxes[boxIdx].removeLense(label);
+        }
+    };
+    
     std::string line;
     getline(listFile, line);
-    size_t totalSum = 0;
+    size_t totalSumFirstStar = 0;
     if (!line.empty()) {
         size_t prevPos = 0;
         while (prevPos < line.size()) {
-            size_t pos = line.find(",", prevPos);
-            if (pos == std::string::npos) {
-                pos = line.size();
-            }
+            const size_t pos = std::min(line.find(",", prevPos), line.size());
             const auto str = line.substr(prevPos, pos - prevPos);
+            // First star:
             const auto code = hashCode(str);
-            cout << str << ": " << code << endl;
-            totalSum += code;
+            totalSumFirstStar += code;
+                
+            // Second star:
+            process(str);
+            
             prevPos = pos + 1;
         }
     }
 
-
-    cout << "Total sum: " << totalSum << endl;
-
+    long totalPower = 0;
+    for (size_t i=1; i<=256; i++) {
+        totalPower += i * boxes[i-1].power();;
+    }
+    
+    cout << "Total sum first star: " << totalSumFirstStar << endl;
+    cout << "Total sum second star: " << totalPower << endl;
+    
     return EXIT_SUCCESS;
 }
