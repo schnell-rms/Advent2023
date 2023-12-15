@@ -4,6 +4,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <map>
 
 #include <utils.h>
 
@@ -15,20 +16,14 @@ struct SBox {
     //                <label <focalLength, orderNumber>>
     std::unordered_map<std::string, std::pair<long, size_t>> lenses;
 
-    // O(n) in both versions:
+    size_t lastIdx = 0;
     //  - vector: O(n) for both searching for the lense and then to remove it
-    //  - map: O(logn) for searching, but then O(n) for readjusting the order
-    // Variant: keep the order of the last inserted element and just increase that: TODO
+    //  - map: O(logn) for removing
     void removeLense(const std::string& label) {
         auto it = lenses.find(label);
         if (it != lenses.end()) {
             const size_t sz = it->second.second;
             lenses.erase(it);
-            for (auto &it:lenses) {
-                if (it.second.second > sz) {
-                    --it.second.second;
-                }
-            }
         }
     }
     
@@ -39,15 +34,24 @@ struct SBox {
         if (it != lenses.end()) {
             it -> second.first = focalLength;
         } else {// Lense not found:
-            lenses[label] = {focalLength, lenses.size()};
+            lenses[label] = {focalLength, ++lastIdx};
         }
     }
     
-    // O(n) in both vector and map versions
+    // vector: O(n)
+    // map: O(n * logn)
     long power() {
-        long pw = 0;
+        // first order: O(n * log n)
+        std::map<size_t, long> order;
         for (auto &it:lenses) {
-            pw += it.second.first * (it.second.second + 1);
+            order[it.second.second] = it.second.first;
+        }
+
+        long pw = 0;
+        size_t i = 0;
+        // o(n)
+        for (auto &it:order) {
+            pw += (++i) * it.second;
         }
 
         return pw;
