@@ -14,6 +14,11 @@ using TLense = std::pair<std::string, long>;
 struct SBox {
     //                <label <focalLength, orderNumber>>
     std::unordered_map<std::string, std::pair<long, size_t>> lenses;
+
+    // O(n) in both versions:
+    //  - vector: O(n) for both searching for the lense and then to remove it
+    //  - map: O(logn) for searching, but then O(n) for readjusting the order
+    // Variant: keep the order of the last inserted element and just increase that: TODO
     void removeLense(const std::string& label) {
         auto it = lenses.find(label);
         if (it != lenses.end()) {
@@ -27,6 +32,8 @@ struct SBox {
         }
     }
     
+    // O(n) in vector version, because of searching for existance of the lense
+    // O(logn) in map version
     void addLense(const std::string& label, long focalLength) {
         auto it = lenses.find(label);
         if (it != lenses.end()) {
@@ -36,6 +43,7 @@ struct SBox {
         }
     }
     
+    // O(n) in both vector and map versions
     long power() {
         long pw = 0;
         for (auto &it:lenses) {
