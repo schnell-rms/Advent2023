@@ -4,42 +4,90 @@
 
 #include <string>
 #include <utils.h>
-#include <queue>
-#include <unordered_map>
 
 using namespace std;
 
-using TInstructions = std::vector<std::string>; 
-// using TDigPlan = std::unordered_map<size_t, std::pair<size_t, size_t>>; // [i][leftJ, rightJ]
-using TDigPlan = std::vector<std::vector<size_t>>; // [i][leftJ, rightJ]
-
 enum EDirection {
-    eUp = 0,
+    eRight = 0,
     eDown,
     eLeft,
-    eRight,
+    eUp,
     eNoDirection
 };
 
+std::string extractHexa(const std::string& line) {
+    std::smatch sm;
+    std::regex_search(line.cbegin(), line.cend(), sm, std::regex("#([0-9a-f]{6})"));
+    return sm[1].str();
+};
+
+TNumber decimal(const std::string &hexa) {
+    TNumber n = 0;
+    for (char c:hexa) {
+        const TNumber d = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
+        n <<= 4;
+        n |= d;
+    }
+    return n;
+}
+
+struct SIntruction {
+    TNumber steps;
+    EDirection dir;
+
+    SIntruction(const std::string& line, bool isGold) {
+        if (isGold) {
+            auto s = extractHexa(line);
+            dir = static_cast<EDirection>(s.back() - '0');
+            s.pop_back();
+            steps = decimal(s);
+        } else {
+            steps = firstNumber(line);
+            switch (line[0])
+            {
+            case 'R':
+                dir = eRight;
+                break;
+            case 'L':
+                dir = eLeft;
+                break;
+            case 'U':
+                dir = eUp;
+                break;
+            case 'D':
+                dir = eDown;
+                break;
+            default:
+                assert(false);
+                break;
+            }
+        }
+    }
+};
+
+using TInstructions = std::vector<SIntruction>; 
+using TDigPlan = std::vector<std::pair<TNumber, TNumber>>; // vector of [i][j]
+
 TDigPlan createPlan(const TInstructions& instructions) {
-    ssize_t i = 0, j = 0;
-    ssize_t ni = 0, nj = 0;
-    ssize_t maxI = 0, maxJ = 0;
-    ssize_t minI = 0, minJ = 0;
+    TNumber i = 0, j = 0;
+
+    TDigPlan plan;
+    plan.emplace_back(make_pair(i,j));
+
     for (const auto& line:instructions) {
-        long steps = firstNumber(line);
-        switch (line[0])
+        const long &steps = line.steps;
+        switch (line.dir)
         {
-        case 'R':
+        case eRight:
             j = j + steps;
             break;
-        case 'L':
+        case eLeft:
             j = j - steps;
             break;
-        case 'U':
+        case eUp:
             i = i - steps;
             break;
-        case 'D':
+        case eDown:
             i = i + steps;
             break;
         default:
@@ -47,135 +95,48 @@ TDigPlan createPlan(const TInstructions& instructions) {
             break;
         }
 
-        maxI = std::max(i, maxI);
-        minI = std::min(i, minI);
-
-        maxJ = std::max(j, maxJ);
-        minJ = std::min(j, minJ);
-        assert(maxI < 1000);
-        assert(maxJ < 1000);
+        plan.emplace_back(make_pair(i,j));
     }
 
-    maxI += -minI;
-    maxJ += -minJ;
-
-    TDigPlan plan(maxI+1, std::vector<size_t>(maxJ+1, 0));
-
-    i = -minI;
-    j = -minJ;
-    ni = i;
-    nj = j;
-    // Once more:
-    for (const auto& line:instructions) {
-        long steps = firstNumber(line);
-        switch (line[0])
-        {
-        case 'R':
-            nj = j + steps;
-            break;
-        case 'L':
-            nj = j - steps;
-            break;
-        case 'U':
-            ni = i - steps;
-            break;
-        case 'D':
-            ni = i + steps;
-            break;
-        default:
-            assert(false);
-            break;
-        }
-        
-        for (ssize_t mi=std::min(i,ni); mi <= std::max(i,ni); ++mi) {
-            for (ssize_t mj=std::min(j,nj); mj <= std::max(j,nj); ++mj) {
-                plan[mi][mj] = 1;
-            }
-        }
-
-        i = ni;
-        j = nj;
-    }
-
-    printMatrix(plan, true, 1);
     return plan;
 }
 
+size_t area(const TDigPlan &plan) {
+    // Imagine an infinite checkboard. Each cell has its integer coordinates.
+    // Now imagine floating points coordinates: the integer coordintes are in the 
+    // middle of the checkboard cells!
 
-
-bool fill(TDigPlan &plan, size_t key) {
-    ssize_t startI = 0;
-    ssize_t startJ = 0;
-    bool found = false;
-    for(size_t i = 0; (i < plan.size()) && !found; ++i) {
-        for(size_t j = 0; j < plan[0].size(); ++j) {
-            if (plan[i][j] == 0) {
-                startI = i;
-                startJ = j;
-                found = true;
-                break;
-            }
-        }
+    // Add / substract square-areas from each coordinate to the origin, while going along the countour.
+    // The result will be the total area inside the floating-numbers countour.
+    // It works because all countour-sides are either horizontal or vertical.
+    TNumber countourArea = 0;//number of checkboard cells
+    TNumber totalArea = plan[0].first * plan[0].second;//first square added
+    TNumber sign = -1;//next one substracted
+    for (size_t k=1; k<plan.size(); ++k) {
+        TNumber chunkArea = sign * (plan[k].first * plan[k].second);
+        sign *= -1;
+        countourArea +=     abs(plan[k].first - plan[k-1].first)
+                         +  abs(plan[k].second - plan[k-1].second);
+        totalArea += chunkArea;
     }
-
-    if (!found) {
-        return false;
-    }
-
-    std::queue<std::pair<size_t, size_t>> q;
-    q.push({startI, startJ});
-
-    auto add = [&]( std::queue<std::pair<size_t, size_t>> &q,
-                    ssize_t i, ssize_t j, ssize_t di, ssize_t dj) {
-        i += di;
-        j += dj;
-
-        if ((i<0) ||  (j<0) || (i>=plan.size()) || (j>=plan[0].size())) {
-            return;
-        }
-
-        if (plan[i][j] != 0) return;
-        plan[i][j] = key;
-        q.push({i,j});
-    };
-
-    plan[startI][startJ] = key;
-    while (!q.empty()) {
-        auto ij = q.front();
-        q.pop();
-
-        add(q, ij.first, ij.second, -1, 0);
-        add(q, ij.first, ij.second, 1, 0);
-        add(q, ij.first, ij.second, 0, 1);
-        add(q, ij.first, ij.second, 0, -1);
-    }
-
-    printMatrix(plan);
-    return true;
-}
-
-size_t area(TDigPlan &plan, size_t key) {
-    size_t area = 0;
-    // size_t i = 0;
-    // TDigPlan::const_iterator it = plan.find(i);
-    // while(it != plan.end()) {
-    //     area += it->second.second - it->second.first + 1;
-    //     it = plan.find(++i);
-    // }
-
-    // auto ok = [&](size_t j) { return j<plan[0].size();};
-
-    for(size_t i = 0; i < plan.size(); ++i) {
-        for(size_t j = 0; j < plan[0].size(); ++j) {
-            area += (plan[i][j] == key);
-        }
-    }
-    return area;
+    // totalArea - is the area inside the floating-number coordintes countour.
+    // For the requested area, we have to add for each cell half of its area: 
+    // half of it is already included in totalArea.
+    // To add the other half, we add half of the countout area to total area.
+    // ... But one cell area still has to be added!
+    // Imagine the countour of a rectangle: for each of its 4 corner-cells,
+    //  totalArea contains only on quarter of each cell. 
+    // So adding half a contour-area is not enough: 4 more quarters have to be 
+    // added, i.e. one cell area in total.
+    // 
+    // With more complex countours there will be more corner-cells.
+    // Some will get only 1 quarter inside totalArea, while others will get 3 quarters inside.
+    // But overall - since the countour is closed, there will always be 4 quarters of cells
+    // which overall are outside totalArea: the one defined by the centers of the checkboard cells.
+    return abs(totalArea) + countourArea/2  + 1;
 }
 
 int main(int argc, char *argv[]) {
-
-    gIS_DEBUG = argc > 2;
 
     std::string inputFilePath;
     if (argc > 1) {
@@ -191,27 +152,25 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    auto someLambda = [&]() {
-    };
-    
-    std::vector<std::string> lines;
+    TInstructions goldInstructions;
+    TInstructions silverInstructions;
     std::string line;
     while(getline(listFile, line)) {
         if (!line.empty()) {
-            lines.push_back(std::move(line));
+            // TODO: could be space optimized by calling here some methods
+            // to build directly TDigPlan entities. Whatever.
+            goldInstructions.emplace_back(line,true);
+            silverInstructions.emplace_back(line,false);
         }
     }
 
-    TDigPlan plan = createPlan(lines);
-    size_t key = 2;
-    while(fill(plan, key)) {
-        key++;
-    }
-
-    //Silver: Choose biggest one + area(key == 1)
-    for (size_t i=0; i<key; i++) {
-        cout << "key " << i << " has area " << area(plan, i) << endl;
-    }
+    TDigPlan silverPlan = createPlan(silverInstructions);
+    auto silver = area(silverPlan);
+    cout << "Silver area " <<  silver << endl;
     
+    TDigPlan goldPlan = createPlan(goldInstructions);
+    auto gold = area(goldPlan);
+    cout << "Gold area " <<  gold << endl;
+
     return EXIT_SUCCESS;
 }

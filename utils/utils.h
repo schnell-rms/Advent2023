@@ -5,13 +5,15 @@
 
 bool gIS_DEBUG = false;
 
-std::vector<long> allNumbers(const std::string& line) {
+using TNumber = ssize_t;
+
+std::vector<TNumber> allNumbers(const std::string& line) {
     std::smatch sm;
-    std::vector<long> ret;
+    std::vector<TNumber> ret;
     std::string::const_iterator searchStart(line.cbegin() );
     while (std::regex_search(searchStart, line.cend(), sm, std::regex("(-?\\d+)"))) {
 
-        const long number = std::stol(sm[1]);
+        const TNumber number = std::stol(sm[1]);
         ret.push_back(number);
 
         searchStart = sm.suffix().first;
@@ -19,11 +21,11 @@ std::vector<long> allNumbers(const std::string& line) {
     return ret;
 };
 
-long firstNumber(const std::string& line) {
+TNumber firstNumber(const std::string& line) {
     std::smatch sm;
     std::regex_search(line.cbegin(), line.cend(), sm, std::regex("(-?\\d+)"));
 
-    const long number = std::stol(sm[1]);
+    const TNumber number = std::stol(sm[1]);
     return number;
 };
 
