@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+bool gIS_DEBUG = false;
+
 std::vector<long> allNumbers(const std::string& line) {
     std::smatch sm;
     std::vector<long> ret;
@@ -26,25 +28,29 @@ long firstNumber(const std::string& line) {
 };
 
 template<class T>
-void printCollection(const T &whatever) {
+int printCollection(const T &whatever, bool endLine = true, int width = 3) {
     for(auto t:whatever) {
-        std::cout << t << " ";
+        std::cout << std::setw(width) << t << " ";
     }
-    std::cout << std::endl;
+    !whatever.empty() && std::cout << '\b';
+    endLine && std::cout << std::endl;
+    return EXIT_SUCCESS;
 }
 
 template<class T>
-void printVector(const std::vector<T> &vec) {
-    for(auto t:vec) {
-        std::cout << t << " ";
-    }
-    std::cout << std::endl;
+int printVector(const std::vector<T> &vec, bool endLine = true) {
+    return printCollection(vec, endLine);
 }
 
 template<class T>
-void printMatrix(const std::vector<T> &mat) {
+int printMatrix(const T &mat, bool endLine = true, int width = 3) {
     for (auto &vec:mat) {
-        printCollection<T>(vec);
+        printCollection(vec, endLine, width);
     }
     std::cout << std::endl;
+    return EXIT_SUCCESS;
+}
+
+int waitForKey() {
+    return std::cin.get();
 }
