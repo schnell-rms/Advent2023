@@ -5,7 +5,7 @@
 
 bool gIS_DEBUG = false;
 
-using TNumber = ssize_t;
+using TNumber = int64_t;
 
 std::vector<TNumber> allNumbers(const std::string& line) {
     std::smatch sm;

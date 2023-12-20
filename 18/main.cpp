@@ -106,11 +106,11 @@ size_t area(const TDigPlan &plan) {
     // Now imagine floating points coordinates: the integer coordintes are in the 
     // middle of the checkboard cells!
 
-    // Add / substract square-areas from each coordinate to the origin, while going along the countour.
+    // Add / substract rectangle-areas from each coordinate to the origin, while going along the countour.
     // The result will be the total area inside the floating-numbers countour.
     // It works because all countour-sides are either horizontal or vertical.
     TNumber countourArea = 0;//number of checkboard cells
-    TNumber totalArea = plan[0].first * plan[0].second;//first square added
+    TNumber totalArea = plan[0].first * plan[0].second;//first rectangle added
     TNumber sign = -1;//next one substracted
     for (size_t k=1; k<plan.size(); ++k) {
         TNumber chunkArea = sign * (plan[k].first * plan[k].second);
