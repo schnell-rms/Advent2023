@@ -100,19 +100,21 @@ int main(int argc, char *argv[]) {
     // SILVER
     // --------------------------------------------------------
 
-    auto walk = [&](TNumber nbSteps) {
-        TReachedPositions positions;
-        positions.insert(encodePosition(startI, startJ));
+    auto walk = [&](TReachedPositions positions, TNumber nbSteps) {
+        if (positions.empty()) {
+            positions.insert(encodePosition(startI, startJ));
+        }
         TReachedPositions nextPositions;
         for (size_t i = 0; i<nbSteps; i++) {
             nextPositions = goOneStep(lines, positions);
             positions.swap(nextPositions);
         }
 
-        return positions.size();
+        return positions;
     };
 
-    const size_t silver = walk(64);
+    TReachedPositions positions;
+    const size_t silver = walk(positions, 64).size();
     cout << "Total silver is: " << silver << endl;
 
     // ________________________________________________________
@@ -128,16 +130,20 @@ int main(int argc, char *argv[]) {
     // We need A, B and C
 
     TNumber X = 0;
-    TNumber nSteps = lines.size()/2;// = 65
-    const TNumber A = walk(nSteps);
+    TNumber nSteps_X0 = lines.size()/2;// = 65
+    positions.clear();
+    positions = walk(positions, nSteps_X0);
+    const TNumber A = positions.size();
 
     X = 1;
-    nSteps = X * lines.size() + lines.size()/2;// = 196
-    const TNumber A_B_C = walk(nSteps);
+    TNumber nSteps_X1 = X * lines.size() + lines.size()/2;// = 196
+    positions = walk(positions, nSteps_X1 - nSteps_X0);
+    const TNumber A_B_C = positions.size();
 
     X = 2;
-    nSteps = X * lines.size() + lines.size()/2;// = 327
-    const TNumber A_2B_4C = walk(nSteps);
+    TNumber nSteps_X2 = X * lines.size() + lines.size()/2;// = 327
+    positions = walk(positions, nSteps_X2 - nSteps_X1);
+    const TNumber A_2B_4C = positions.size();
 
     const TNumber B_C = A_B_C - A;
     assert((A_2B_4C - A) % 2 == 0);
@@ -145,8 +151,8 @@ int main(int argc, char *argv[]) {
     const TNumber C = B_2C - B_C;
     const TNumber B = B_C - C;
 
-    nSteps = 26501365;
-    X = nSteps / lines.size();
+    TNumber nGoldSteps = 26501365;
+    X = nGoldSteps / lines.size();
     TNumber gold = A + B * X + C * X * X;
     cout << "Total gold is: " << gold << endl;
 
