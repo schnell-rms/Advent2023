@@ -134,16 +134,19 @@ int main(int argc, char *argv[]) {
     positions.clear();
     positions = walk(positions, nSteps_X0);
     const TNumber A = positions.size();
+    cout << nSteps_X0 << " steps. A:  " << A << endl;
 
     X = 1;
     TNumber nSteps_X1 = X * lines.size() + lines.size()/2;// = 196
     positions = walk(positions, nSteps_X1 - nSteps_X0);
     const TNumber A_B_C = positions.size();
+    cout << nSteps_X1 << " steps. A + B + C: " << A_B_C << endl;
 
     X = 2;
     TNumber nSteps_X2 = X * lines.size() + lines.size()/2;// = 327
     positions = walk(positions, nSteps_X2 - nSteps_X1);
     const TNumber A_2B_4C = positions.size();
+    cout << nSteps_X2 << " steps. A + 2*B + 4*C: " << A_2B_4C << endl;
 
     const TNumber B_C = A_B_C - A;
     assert((A_2B_4C - A) % 2 == 0);
