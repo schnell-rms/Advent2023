@@ -210,9 +210,6 @@ int main(int argc, char *argv[]) {
         std::cout << "Could not open input file" << std::endl;
         return EXIT_FAILURE;
     }
-
-    auto someLambda = [&]() {
-    };
     
     TMap lines;
     std::string line;
