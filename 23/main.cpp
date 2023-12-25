@@ -246,8 +246,16 @@ int main(int argc, char *argv[]) {
     
     TVisited visited;
     assert(graph.find(key(startI, startJ)) != graph.end());
+
     cout << "Gold takes a while..." << endl;
+    const clock_t begin = clock();
+
     const size_t gold = route(key(startI,startJ), graph, visited);
+
+    const clock_t end = clock();
+    const double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "It took " << elapsed_secs << " seconds" << endl;
+
     cout << "Longest gold path is: " << gold << endl;
     return EXIT_SUCCESS;
 }
