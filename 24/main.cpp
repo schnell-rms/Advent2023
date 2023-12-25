@@ -1,11 +1,14 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include "z3++.h"
 
 #include <string>
 #include <utils.h>
 #include <ratio>
 #include <numeric>
+
+#include <fraction.h>
 
 using namespace std;
 
@@ -29,78 +32,6 @@ struct Line {
 };
 
 using TLines = std::vector<Line>;
-
-class Fraction {
-public:
-    Fraction(TNumber nom) : n_(nom), d_(1) {}
-    
-    Fraction(TNumber nom, TNumber den): n_(nom), d_(den) {
-        if (d_ < 0) {
-            // The sign stays with the nominator:
-            d_ *= -1;
-            n_ *= -1;
-        }
-        simplify();
-    }
-
-    bool operator==(const Fraction &other) const {
-        return ((n_ == other.n_) && (d_ == other.d_));
-    }
-
-    bool operator!=(const Fraction &other) const {
-        return !(operator==(other));
-    }
-
-    bool isValid() const {
-        return d_ != 0;
-    }
-
-    bool operator<(const Fraction &other) {
-        assert(isValid());
-        assert(other.isValid());
-        return n_ * other.d_ < other.n_ * d_;
-    }
-
-    bool operator<(const TNumber number) {
-        assert(isValid());
-        return n_ < number * d_;
-    }
-
-    Fraction operator*=(const Fraction& other)
-    {
-        n_ = n_ * other.n_;
-        d_ = d_ * other.d_;
-        simplify();
-        return *this;
-    }
-
-    Fraction operator+=(const Fraction& other)
-    {
-        n_ = n_ * other.d_ + other.n_ * d_;
-        d_ = d_ * other.d_;
-        simplify();
-        return *this;
-    }
-    
-    // As a replacement to multiplication and operator<
-    double asDouble() const {
-        assert(isValid());
-        return static_cast<double>(n_) / static_cast<double>(d_);
-    }
-
-private:
-    void simplify() {
-        if (d_ != 0) {
-            auto a = std::gcd(n_, d_);
-            d_ /= a;
-            n_ /= a;
-        }
-    }
-
-private:
-    TNumber n_;
-    TNumber d_;
-};
 
 // Brute force:
 TNumber countXYIntersectionsWithTime(const TLines &lines) {
@@ -183,6 +114,70 @@ TNumber countXYIntersections(const TLines &lines) {
     return n;
 }
 
+// Gold: solve for the first 3 trajectories. The solution should fit all.
+TNumber solveGoldEquation(const TLines &lines) {
+/*
+Equations are in the form of (where s is the start coordinate of the rock and v is the speed):
+p0.x + d0.x * t0 = sx + vx * t0
+p0.y + d0.y * t0 = sy + vy * t0
+p0.z + d0.z * t0 = sz + vz * t0
+
+p1.x + d1.x * t1 = sx + vx * t1
+p1.y + d1.y * t1 = sy + vy * t1
+p1.z + d1.z * t1 = sz + vz * t1
+
+p2.x + d2.x * t2 = sx + vx * t2
+p2.y + d2.y * t2 = sy + vy * t2
+p2.z + d2.z * t2 = sz + vz * t2
+
+Nine equations, 9 unkonws (3 t#, 3 s# and 3 v#), should be enough and should match the solution for the given input.
+Solve this using an equation solver utility!!!
+*/
+    z3::context ctx;
+    z3::expr    sx = ctx.int_const("sx");
+    z3::expr    sy = ctx.int_const("sy");
+    z3::expr    sz = ctx.int_const("sz");
+    z3::expr    vx = ctx.int_const("vx");
+    z3::expr    vy = ctx.int_const("vy");
+    z3::expr    vz = ctx.int_const("vz");
+    z3::solver  solver(ctx);
+
+    for (int i = 0; i < 3; ++i)
+    {
+      auto oneLine = lines[i];
+      string strT = "t" + to_string(i);
+
+      z3::expr t = ctx.int_const(strT.c_str());
+      auto px = ctx.int_val(oneLine.p.x);
+      auto dx = ctx.int_val(oneLine.d.x);
+
+      auto py = ctx.int_val(oneLine.p.y);
+      auto dy = ctx.int_val(oneLine.d.y);
+
+      auto pz = ctx.int_val(oneLine.p.z);
+      auto dz = ctx.int_val(oneLine.d.z);
+
+      solver.add(px + t * dx == sx + t * vx);
+      solver.add(py + t * dy == sy + t * vy);
+      solver.add(pz + t * dz == sz + t * vz);
+    }
+
+    solver.check();
+    auto solution = solver.get_model();
+
+    if (gIS_DEBUG) {
+        cout << "Start x " << solution.eval(sx) << endl;
+        cout << "Start y " << solution.eval(sy) << endl;
+        cout << "Start z " << solution.eval(sz) << endl;
+
+        cout << "Speed x " << solution.eval(vx) << endl;
+        cout << "Speed y " << solution.eval(vy) << endl;
+        cout << "Speed z " << solution.eval(vz) << endl;
+    }
+
+    return std::stoll(solution.eval(sx + sy + sz).to_string());
+}
+
 int main(int argc, char *argv[]) {
 
     std::string inputFilePath;
@@ -199,9 +194,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    auto someLambda = [&]() {
-    };
-    
     std::string textLine;
     TLines geoLines;
 
@@ -211,9 +203,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    size_t silver = countXYIntersections(geoLines);
-
+    const size_t silver = countXYIntersections(geoLines);
     cout << "Silver: " << silver << endl;
+
+    const auto goldz3 = solveGoldEquation(geoLines);
+    cout << "GOLD Z3: " << goldz3 << endl;
 
     return EXIT_SUCCESS;
 }

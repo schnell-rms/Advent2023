@@ -1,3 +1,6 @@
+#ifndef ADVENT_2023_UTILS_H
+#define ADVENT_2023_UTILS_H
+
 #include <iostream>
 #include <regex>
 #include <string>
@@ -45,7 +48,10 @@ int printVector(const std::vector<T> &vec, bool endLine = true) {
 }
 
 template<class T>
-int printMatrix(const T &mat, bool endLine = true, int width = 3) {
+int printMatrix(const T &mat, bool endLine = true, int width = 3, std::string name = "") {
+    if (!name.empty()) {
+        std::cout << name << std::endl;
+    }
     for (auto &vec:mat) {
         printCollection(vec, endLine, width);
     }
@@ -56,3 +62,5 @@ int printMatrix(const T &mat, bool endLine = true, int width = 3) {
 int waitForKey() {
     return std::cin.get();
 }
+
+#endif // ADVENT_2023_UTILS_H
