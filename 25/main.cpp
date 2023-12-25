@@ -79,6 +79,20 @@ public:
     std::unordered_set<std::string> absorbed;
 };
 
+TGraph kargerCut(const TGraph &graph, size_t nbSuperNodes = 2) {
+    assert(nbSuperNodes >= 2);
+    TGraph g = graph;
+
+    while (g.size() > nbSuperNodes) {
+        // Select an edge, by first selecting a node:
+        const auto nodeIdx = rand() % g.size();
+        auto nodeIt = g.begin();
+        std::advance(nodeIt, nodeIdx);
+        nodeIt->second.mergeWithRandomNeighbour(g);
+    }
+    return g;
+}
+
 TNumber kargetMinCut(const TGraph &graph) {
 
     TGraph g;
@@ -86,24 +100,16 @@ TNumber kargetMinCut(const TGraph &graph) {
     size_t nTry = 0;
     size_t nCuts;
     do {
-        g = graph;
-
-        while (g.size() > 2) {
-            // Select an edge, by first selecting a node:
-            const auto nodeIdx = rand() % g.size();
-            auto nodeIt = g.begin();
-            std::advance(nodeIt, nodeIdx);
-            nodeIt->second.mergeWithRandomNeighbour(g);
-        }
+        g = kargerCut(graph,2);
 
         auto it1 = g.begin();
         auto it2 = ++g.begin();
-        
+
         n1 = it1->second.nbMerged();
         n2 = it2->second.nbMerged();
-        
+
         assert(it1->second.nbFinalEdges() == it2->second.nbFinalEdges());
-        gIS_DEBUG && cout << "Final nodes: " << it1->first << " containing:" << endl;
+        gIS_DEBUG && cout << "\nFinal nodes: " << it1->first << " containing:" << endl;
         gIS_DEBUG && printCollection(it1->second.absorbed);
         gIS_DEBUG && cout << "And " << it2->first << " containing: " << endl;
         gIS_DEBUG && printCollection(it2->second.absorbed);
@@ -112,7 +118,73 @@ TNumber kargetMinCut(const TGraph &graph) {
         assert(graph.size() == (n1+n2));
         nCuts = g.begin()->second.nbFinalEdges();
         nTry++;
-    } while ((nTry < 10000) && (nCuts != 3));
+    } while ((nTry < 1000) && (nCuts != 3));
+
+    cout << "Nb tries " << nTry << endl;
+    (nCuts != 3) && cout << "Might need to try again..." << endl;
+
+    return n1 * n2;
+}
+
+// Does not work for whatevr reason. Or it takes too much. Infinite loop of some kind?
+TGraph kargerSteinCut(const TGraph &graph) {
+    const size_t nbNodes = graph.size();
+    if (nbNodes <= 6) {
+        return kargerCut(graph, 2);
+    }
+
+    auto countRemainingEdges = [](const TGraph& g) {
+        size_t count = 0;
+        for (auto it:g) {
+            count += it.second.nbFinalEdges();
+        }
+        assert(count % 2 == 0);
+        return count/2;
+    };
+
+    // Theory says: nLimit = static_cast<size_t>(nbNodes/sqrt(2)) + 1;
+    // But that takes forever. Just divide by 10 instead:
+    const size_t nbLimit = std::max(6UL, nbNodes/10);
+    TGraph gKarger = kargerCut(graph, nbLimit);
+    const TGraph g1 = kargerSteinCut(gKarger);
+    const auto nCuts1 = countRemainingEdges(g1);
+
+    if ((nCuts1 == 3) && (g1.size()==2)) {
+        return g1;
+    }
+
+    const TGraph g2 = kargerSteinCut(gKarger);
+    const auto nCuts2 = countRemainingEdges(g2);
+
+    return  (nCuts1 < nCuts2) ? g1 : g2;
+}
+
+TNumber kargerSteinMinCut(const TGraph &graph) {
+
+    TGraph g;
+    size_t n1, n2;
+    size_t nTry = 0;
+    size_t nCuts;
+    do {
+        g = kargerSteinCut(graph);
+
+        auto it1 = g.begin();
+        auto it2 = ++g.begin();
+        
+        n1 = it1->second.nbMerged();
+        n2 = it2->second.nbMerged();
+        
+        assert(it1->second.nbFinalEdges() == it2->second.nbFinalEdges());
+        gIS_DEBUG && cout << "\nFinal nodes: " << it1->first << " containing:" << endl;
+        gIS_DEBUG && printCollection(it1->second.absorbed);
+        gIS_DEBUG && cout << "And " << it2->first << " containing: " << endl;
+        gIS_DEBUG && printCollection(it2->second.absorbed);
+        gIS_DEBUG && cout << "Split it two: " << n1 << " and " << n2 << " by cutting " << it1->second.nbFinalEdges() << " edges" << endl;
+
+        assert(graph.size() == (n1+n2));
+        nCuts = g.begin()->second.nbFinalEdges();
+        nTry++;
+    } while ((nTry < 1000) && (nCuts != 3));
 
     cout << "Nb tries " << nTry << endl;
     (nCuts != 3) && cout << "Might need to try again..." << endl;
@@ -152,16 +224,38 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    srand(static_cast<unsigned int>(time(NULL)));
-
     // Not necessary, could use and pass the TGraph key everywhere, but whatever:
     for (auto &it:graph) {
         it.second.setName(it.first);
     }
 
+    const unsigned int seed = static_cast<unsigned int>(time(NULL));
+    srand(seed);
+
     cout << "Apply Karger's algorithm in a loop until 3-edges cut split is found. Could be optimized to Karger–Stein algorithm. Perhaps another time..."  << endl;
+    clock_t begin = clock();
     const auto silver = kargetMinCut(graph);
+    clock_t end = clock();
+
     cout << "Silver == Gold: " << silver << endl;
+
+    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "The RNG took " << elapsed_secs << " seconds" << endl;
+
+
+    // This does not look like an optimization:
+    cout << "\n...The time has come... Using the same RNG seed:\n" << endl;
+    srand(seed);
+
+    cout << "Apply Karger-Stein's algorithm in a loop until 3-edges cut split is found."  << endl;
+    begin = clock();
+    auto silver2 = kargerSteinMinCut(graph);
+    end = clock();
+
+    cout << "Silver == Gold again: " << silver2 << endl;
+
+    elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "The RNG took " << elapsed_secs << " seconds" << endl;
 
     return EXIT_SUCCESS;
 }
