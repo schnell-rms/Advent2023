@@ -32,6 +32,17 @@ TNumber firstNumber(const std::string& line) {
     return number;
 };
 
+std::vector<std::string> allAlphaStrings(const std::string& line) {
+    std::smatch sm;
+    std::vector<std::string> ret;
+    std::string::const_iterator searchStart(line.cbegin() );
+    while (std::regex_search(searchStart, line.cend(), sm, std::regex("([a-zA-Z]+)"))) {
+        ret.push_back(sm[1].str());
+        searchStart = sm.suffix().first;
+    }
+    return ret;
+};
+
 template<class T>
 int printCollection(const T &whatever, bool endLine = true, int width = 3) {
     for(auto t:whatever) {
